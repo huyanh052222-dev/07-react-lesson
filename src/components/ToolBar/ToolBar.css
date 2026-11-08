@@ -1,0 +1,26 @@
+.toolbar {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.searchBar {
+  flex: 1 1 280px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.sortBtn {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.count {
+  font-size: 14px;
+  color: #666;
+}

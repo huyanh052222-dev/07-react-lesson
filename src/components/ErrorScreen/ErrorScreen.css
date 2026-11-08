@@ -1,0 +1,27 @@
+.errorOn {
+  min-height: 100vh;
+  font-size: 32px;
+  background-color: rgb(247, 73, 73);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 15px;
+  margin: 0 -16px;
+}
+
+.return-btn {
+  width: 120px;
+  height: 40px;
+  border: none;
+  border-radius: 5px;
+  color: rgb(30, 30, 34);
+}
+
+.return-btn:hover {
+  transform: translateY(-2px);
+  background-color: rgb(44, 44, 236);
+  color: white;
+  transition: all ease 0.2s;
+}
