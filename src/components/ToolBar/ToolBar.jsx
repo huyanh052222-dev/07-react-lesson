@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import './ToolBar.css'
 
-function ToolBar({ query, sort, total, shown, onQuery, onSort }) {
+function ToolBar({ query, sort, shown, hasMore, onQuery, onSort }) {
   return (
     <div className="toolbar">
       <input
@@ -22,7 +22,7 @@ function ToolBar({ query, sort, total, shown, onQuery, onSort }) {
       </select>
 
       <span className="count">
-        Hiển thị {shown}/{total}
+        Hiển thị {shown}{hasMore ? '+' : ''}
       </span>
     </div>
   )

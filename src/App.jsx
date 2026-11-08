@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useReducer } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
 import { createUser, deleteUser, getUsers, updateUser } from './api'
-import { LOAD_MORE_DELAY } from './config'
+import { SEARCH_DELAY } from './config'
 import { initialState, reducer } from './reducer'
 
 import CardList from './components/CardList/CardList'
@@ -13,60 +13,67 @@ import ToolBar from './components/ToolBar/ToolBar'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const SORTERS = {
-  default: null,
-  id_asc: (a, b) => Number(a.id) - Number(b.id),
-  id_desc: (a, b) => Number(b.id) - Number(a.id),
-  name_asc: (a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'vi'),
-  name_desc: (a, b) => String(b.name ?? '').localeCompare(String(a.name ?? ''), 'vi'),
+const SORT_PARAMS = {
+  default: {},
+  id_asc: { sortBy: 'id', order: 'asc' },
+  id_desc: { sortBy: 'id', order: 'desc' },
+  name_asc: { sortBy: 'name', order: 'asc' },
+  name_desc: { sortBy: 'name', order: 'desc' },
 }
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState)
-  const { users, status, busy, notice, form, editingId, deleteMode, selectedIds, query, sort } =
-    state
+  const {
+    users, status, busy, notice, form, editingId, deleteMode, selectedIds,
+    query, sort, page, hasMore, loadingMore,
+  } = state
 
-  // ---------- Read ----------
-  const loadUsers = useCallback(async () => {
-    try {
-      dispatch({ type: 'load_success', users: await getUsers() })
-    } catch (error) {
-      console.error(error)
-      dispatch({ type: 'load_failure' })
-    }
-  }, [])
+  // ---------- Search + sort run on the server ----------
+  // Debounce typing so we don't call the API on every keystroke
+  const [search, setSearch] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(query.trim()), SEARCH_DELAY)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  // Bumped on every page-1 request so late responses from an older
+  // search/sort can't overwrite the current results
+  const seqRef = useRef(0)
+  const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
-    loadUsers()
-  }, [loadUsers])
+    const seq = ++seqRef.current
+    dispatch({ type: 'reload_start' })
+    getUsers({ page: 1, search, ...SORT_PARAMS[sort] })
+      .then((batch) => {
+        if (seq === seqRef.current) dispatch({ type: 'load_success', users: batch })
+      })
+      .catch((error) => {
+        console.error(error)
+        if (seq === seqRef.current) dispatch({ type: 'load_failure' })
+      })
+  }, [search, sort, retryTick])
 
   const retry = () => {
     dispatch({ type: 'load_start' })
-    loadUsers()
+    setRetryTick((n) => n + 1)
   }
 
-  // ---------- Search + sort (client side), then paginate ----------
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    let list = q
-      ? users.filter((u) =>
-          [u.name, u.email, u.address, u.phone].some((v) => String(v ?? '').toLowerCase().includes(q))
-        )
-      : users
-    const sorter = SORTERS[sort]
-    if (sorter) list = [...list].sort(sorter)
-    return list
-  }, [users, query, sort])
-
-  // Memoised so CardList gets the same array reference while typing in the form
-  const visibleUsers = useMemo(
-    () => filtered.slice(0, state.visibleCount),
-    [filtered, state.visibleCount]
-  )
-  const hasMore = state.visibleCount < filtered.length
-
-  // ---------- Infinite scroll: wait ~1s before showing the next page ----------
+  // ---------- Infinite scroll: fetch the next page from the server ----------
   const loadMore = useCallback(() => dispatch({ type: 'load_more_start' }), [])
+
+  useEffect(() => {
+    if (!loadingMore) return
+    const seq = seqRef.current
+    getUsers({ page: page + 1, search, ...SORT_PARAMS[sort] })
+      .then((batch) => {
+        if (seq === seqRef.current) dispatch({ type: 'load_more_success', batch })
+      })
+      .catch((error) => {
+        console.error(error)
+        if (seq === seqRef.current) dispatch({ type: 'load_more_failure' })
+      })
+  }, [loadingMore, page, search, sort])
 
   // Stable callbacks (needed for React.memo on ToolBar / CardList / Card to work)
   const handleQuery = useCallback((value) => dispatch({ type: 'set_query', value }), [])
@@ -76,12 +83,6 @@ function App() {
     dispatch({ type: 'start_edit', user })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
-
-  useEffect(() => {
-    if (!state.loadingMore) return
-    const timer = setTimeout(() => dispatch({ type: 'load_more_done' }), LOAD_MORE_DELAY)
-    return () => clearTimeout(timer)
-  }, [state.loadingMore])
 
   // ---------- Create / Update ----------
   async function handleSubmit(e) {
@@ -162,18 +163,18 @@ function App() {
       <ToolBar
         query={query}
         sort={sort}
-        total={filtered.length}
-        shown={visibleUsers.length}
+        shown={users.length}
+        hasMore={hasMore}
         onQuery={handleQuery}
         onSort={handleSort}
       />
 
       <CardList
-        users={visibleUsers}
+        users={users}
         deleteMode={deleteMode}
         selectedIds={selectedIds}
         hasMore={hasMore}
-        loadingMore={state.loadingMore}
+        loadingMore={loadingMore}
         onLoadMore={loadMore}
         onToggleSelected={handleToggleSelected}
         onEdit={handleEdit}

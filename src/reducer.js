@@ -28,7 +28,8 @@ export const initialState = {
   query: '',
   sort: 'default',
 
-  visibleCount: PAGE_SIZE,
+  page: 0, // last page fetched from the server
+  hasMore: true,
   loadingMore: false,
 }
 
@@ -36,8 +37,18 @@ export function reducer(state, action) {
   switch (action.type) {
     case 'load_start':
       return { ...state, status: 'loading', notice: null }
+    case 'reload_start':
+      // New search/sort: keep the old list visible until page 1 arrives
+      return { ...state, loadingMore: false, notice: null }
     case 'load_success':
-      return { ...state, status: 'ready', users: action.users }
+      return {
+        ...state,
+        status: 'ready',
+        users: action.users,
+        page: 1,
+        hasMore: action.users.length === PAGE_SIZE,
+        loadingMore: false,
+      }
     case 'load_failure':
       return { ...state, status: 'error' }
 
@@ -92,14 +103,26 @@ export function reducer(state, action) {
       }
 
     case 'set_query':
-      return { ...state, query: action.value, visibleCount: PAGE_SIZE, loadingMore: false }
+      return { ...state, query: action.value }
     case 'set_sort':
-      return { ...state, sort: action.value, visibleCount: PAGE_SIZE, loadingMore: false }
+      return { ...state, sort: action.value }
 
     case 'load_more_start':
-      return state.loadingMore ? state : { ...state, loadingMore: true }
-    case 'load_more_done':
-      return { ...state, loadingMore: false, visibleCount: state.visibleCount + PAGE_SIZE }
+      return state.loadingMore || !state.hasMore ? state : { ...state, loadingMore: true }
+    case 'load_more_success':
+      return {
+        ...state,
+        users: [...state.users, ...action.batch],
+        page: state.page + 1,
+        hasMore: action.batch.length === PAGE_SIZE,
+        loadingMore: false,
+      }
+    case 'load_more_failure':
+      return {
+        ...state,
+        loadingMore: false,
+        notice: { type: 'error', text: 'Không thể tải thêm user. Vui lòng thử lại.' },
+      }
 
     default:
       return state
