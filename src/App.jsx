@@ -26,6 +26,7 @@ function App() {
   const { users, status, busy, notice, form, editingId, deleteMode, selectedIds, query, sort } =
     state
 
+  // ---------- Read ----------
   const loadUsers = useCallback(async () => {
     try {
       dispatch({ type: 'load_success', users: await getUsers() })
@@ -44,6 +45,7 @@ function App() {
     loadUsers()
   }
 
+  // ---------- Search + sort (client side), then paginate ----------
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     let list = q
@@ -56,10 +58,24 @@ function App() {
     return list
   }, [users, query, sort])
 
-  const visibleUsers = filtered.slice(0, state.visibleCount)
+  // Memoised so CardList gets the same array reference while typing in the form
+  const visibleUsers = useMemo(
+    () => filtered.slice(0, state.visibleCount),
+    [filtered, state.visibleCount]
+  )
   const hasMore = state.visibleCount < filtered.length
 
+  // ---------- Infinite scroll: wait ~1s before showing the next page ----------
   const loadMore = useCallback(() => dispatch({ type: 'load_more_start' }), [])
+
+  // Stable callbacks (needed for React.memo on ToolBar / CardList / Card to work)
+  const handleQuery = useCallback((value) => dispatch({ type: 'set_query', value }), [])
+  const handleSort = useCallback((value) => dispatch({ type: 'set_sort', value }), [])
+  const handleToggleSelected = useCallback((id) => dispatch({ type: 'toggle_selected', id }), [])
+  const handleEdit = useCallback((user) => {
+    dispatch({ type: 'start_edit', user })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   useEffect(() => {
     if (!state.loadingMore) return
@@ -67,6 +83,7 @@ function App() {
     return () => clearTimeout(timer)
   }, [state.loadingMore])
 
+  // ---------- Create / Update ----------
   async function handleSubmit(e) {
     e.preventDefault()
 
@@ -100,6 +117,7 @@ function App() {
     }
   }
 
+  // ---------- Delete ----------
   async function handleDeleteSelected() {
     if (selectedIds.length === 0) return
     if (!window.confirm(`Xóa ${selectedIds.length} tài khoản?`)) return
@@ -146,8 +164,8 @@ function App() {
         sort={sort}
         total={filtered.length}
         shown={visibleUsers.length}
-        onQuery={(value) => dispatch({ type: 'set_query', value })}
-        onSort={(value) => dispatch({ type: 'set_sort', value })}
+        onQuery={handleQuery}
+        onSort={handleSort}
       />
 
       <CardList
@@ -157,11 +175,8 @@ function App() {
         hasMore={hasMore}
         loadingMore={state.loadingMore}
         onLoadMore={loadMore}
-        onToggleSelected={(id) => dispatch({ type: 'toggle_selected', id })}
-        onEdit={(user) => {
-          dispatch({ type: 'start_edit', user })
-          window.scrollTo({ top: 0, behavior: 'smooth' })
-        }}
+        onToggleSelected={handleToggleSelected}
+        onEdit={handleEdit}
       />
     </>
   )

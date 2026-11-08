@@ -1,6 +1,7 @@
+import { memo } from 'react'
 import './ToolBar.css'
 
-export default function ToolBar({ query, sort, total, shown, onQuery, onSort }) {
+function ToolBar({ query, sort, total, shown, onQuery, onSort }) {
   return (
     <div className="toolbar">
       <input
@@ -26,3 +27,5 @@ export default function ToolBar({ query, sort, total, shown, onQuery, onSort }) 
     </div>
   )
 }
+
+export default memo(ToolBar)

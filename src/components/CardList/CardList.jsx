@@ -1,9 +1,11 @@
 import '../Loading/Loading.css'
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
+import { ITEM_GAP, ITEM_HEIGHT, OVERSCAN } from '../../config'
 import Card from '../Card/Card'
+import VirtualList from '../VirtualList/VirtualList'
 import './CardList.css'
 
-export default function CardList({
+function CardList({
   users,
   deleteMode,
   selectedIds,
@@ -15,6 +17,8 @@ export default function CardList({
 }) {
   const sentinelRef = useRef(null)
 
+  // Fires when the bottom marker scrolls into view. The observer is rebuilt after
+  // every page so that, if the marker is still visible, the next page keeps loading.
   useEffect(() => {
     const el = sentinelRef.current
     if (!el || !hasMore || loadingMore) return
@@ -29,19 +33,25 @@ export default function CardList({
   }, [hasMore, loadingMore, users.length, onLoadMore])
 
   return (
-    <div className="list">
+    <div>
       {users.length === 0 && <p className="empty">Không có user nào.</p>}
 
-      {users.map((user) => (
-        <Card
-          key={user.id}
-          user={user}
-          deleteMode={deleteMode}
-          selected={selectedIds.includes(user.id)}
-          onToggleSelected={() => onToggleSelected(user.id)}
-          onEdit={onEdit}
-        />
-      ))}
+      <VirtualList
+        items={users}
+        itemHeight={ITEM_HEIGHT}
+        gap={ITEM_GAP}
+        overscan={OVERSCAN}
+        getKey={(user) => user.id}
+        renderItem={(user) => (
+          <Card
+            user={user}
+            deleteMode={deleteMode}
+            selected={selectedIds.includes(user.id)}
+            onToggleSelected={onToggleSelected}
+            onEdit={onEdit}
+          />
+        )}
+      />
 
       {loadingMore && (
         <div className="loadingMore" role="status">
@@ -54,3 +64,5 @@ export default function CardList({
     </div>
   )
 }
+
+export default memo(CardList)

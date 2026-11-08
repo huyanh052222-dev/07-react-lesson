@@ -1,0 +1,15 @@
+.virtualList {
+  position: relative;
+}
+
+.virtualWindow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
+.virtualRow {
+  box-sizing: border-box;
+}

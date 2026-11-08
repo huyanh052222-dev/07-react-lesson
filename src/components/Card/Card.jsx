@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import './Card.css'
 
 const GENRE_LABEL = { male: 'Nam', female: 'Nữ', other: 'Khác' }
@@ -9,7 +10,7 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('vi-VN')
 }
 
-export default function Card({ user, deleteMode, selected, onToggleSelected, onEdit }) {
+function Card({ user, deleteMode, selected, onToggleSelected, onEdit }) {
   return (
     <div className={`userCard${selected ? ' selected' : ''}`}>
       <p>{user.id}</p>
@@ -24,7 +25,7 @@ export default function Card({ user, deleteMode, selected, onToggleSelected, onE
           type="checkbox"
           aria-label={`Chọn ${user.name}`}
           checked={selected}
-          onChange={onToggleSelected}
+          onChange={() => onToggleSelected(user.id)}
         />
       ) : (
         <button type="button" className="editBtn" onClick={() => onEdit(user)}>
@@ -34,3 +35,6 @@ export default function Card({ user, deleteMode, selected, onToggleSelected, onE
     </div>
   )
 }
+
+// Re-renders only when this card's own props change
+export default memo(Card)
